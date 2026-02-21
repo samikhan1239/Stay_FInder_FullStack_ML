@@ -6,6 +6,7 @@ const nextConfig = {
       "images.unsplash.com",
       "images.pexels.com",
       "maps.googleapis.com",
+      "api.dicebear.com",
     ],
   },
 };

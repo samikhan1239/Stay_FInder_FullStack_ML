@@ -47,19 +47,31 @@ export default function PropertyForm() {
     { name: "Fireplace", icon: Flame },
     { name: "Security", icon: Shield },
   ];
+  const [predictedPrice, setPredictedPrice] = useState(null);
+const [predictionReason, setPredictionReason] = useState("");
+const [isPredicting, setIsPredicting] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name.includes("details.")) {
-      const field = name.split(".")[1];
-      setFormData({
-        ...formData,
-        details: { ...formData.details, [field]: parseInt(value) || 1 },
-      });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-  };
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  if (name.includes("details.")) {
+    const field = name.split(".")[1];
+
+    setFormData((prev) => ({
+      ...prev,
+      details: {
+        ...prev.details,
+        [field]: value === "" ? "" : Number(value),
+      },
+    }));
+  } else {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+};
+
 
   const handleAmenityChange = (amenity) => {
     setFormData({
@@ -69,6 +81,60 @@ export default function PropertyForm() {
         : [...formData.amenities, amenity],
     });
   };
+
+const handlePredictPrice = async () => {
+  try {
+    setIsPredicting(true);
+
+    const response = await fetch("/api/ml/predict-price", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        location: formData.location,
+        guests: formData.details.guests,
+        bedrooms: formData.details.bedrooms,
+        beds: formData.details.beds,
+        bathrooms: formData.details.bathrooms,
+        wifi: formData.amenities.includes("WiFi") ? 1 : 0,
+        parking: formData.amenities.includes("Parking") ? 1 : 0,
+        kitchen: formData.amenities.includes("Kitchen") ? 1 : 0,
+        pool: formData.amenities.includes("Pool") ? 1 : 0,
+        gym: formData.amenities.includes("Gym") ? 1 : 0,
+        fireplace: formData.amenities.includes("Fireplace") ? 1 : 0,
+        security: formData.amenities.includes("Security") ? 1 : 0,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Prediction failed");
+    }
+
+    // ✅ Update price field
+    setFormData((prev) => ({
+      ...prev,
+      price: data.predicted_price,
+    }));
+
+    // ✅ Store explanation separately
+    setPredictedPrice(data.predicted_price);
+    setPredictionReason(data.reason || "Price estimated using location demand, property size, and selected amenities.");
+
+    toast.success("AI Price Predicted Successfully!");
+
+  } catch (error) {
+    console.error(error);
+    toast.error(error.message);
+  } finally {
+    setIsPredicting(false);
+  }
+};
+
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,49 +233,36 @@ export default function PropertyForm() {
       </div>
 
       {/* Location */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Location
-        </label>
-        <div className="relative">
-          <MapPin
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
-            alt=""
-          />
-          <input
-            type="text"
-            name="location"
-            placeholder="e.g., Santorini, Greece"
-            value={formData.location}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            required
-          />
-        </div>
-      </div>
+     <div className="mb-6">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Location
+  </label>
 
-      {/* Price */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Price per Night (₹)
-        </label>
-        <div className="relative">
-          <DollarSign
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
-            alt=""
-          />
-          <input
-            type="number"
-            name="price"
-            placeholder="e.g., 450"
-            value={formData.price}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            required
-            min="1"
-          />
-        </div>
-      </div>
+  <div className="relative">
+    <MapPin
+      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+    />
+
+    <select
+      name="location"
+      value={formData.location}
+      onChange={handleChange}
+      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent appearance-none bg-white"
+      required
+    >
+      <option value="">Select Location</option>
+      <option value="Mumbai">Mumbai</option>
+      <option value="Delhi">Delhi</option>
+      <option value="Bangalore">Bangalore</option>
+      <option value="Hyderabad">Hyderabad</option>
+      <option value="Chennai">Chennai</option>
+      <option value="Kolkata">Kolkata</option>
+    </select>
+  </div>
+</div>
+
+
+   
 
       {/* Image URL */}
       <div className="mb-6">
@@ -270,7 +323,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 name="details.guests"
-                value={formData.details.guests}
+                value={formData.details.guests || ""}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 min="1"
@@ -288,7 +341,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 name="details.bedrooms"
-                value={formData.details.bedrooms}
+                value={formData.details.bedrooms || ""}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 min="1"
@@ -306,7 +359,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 name="details.beds"
-                value={formData.details.beds}
+                value={formData.details.beds || ""}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 min="1"
@@ -326,7 +379,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 name="details.bathrooms"
-                value={formData.details.bathrooms}
+                value={formData.details.bathrooms || ""}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 min="1"
@@ -336,6 +389,53 @@ export default function PropertyForm() {
           </div>
         </div>
       </div>
+   {/* Price */}
+   <div className="mb-6">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Price per Night (₹)
+  </label>
+
+  <div className="relative">
+    <DollarSign
+      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+    />
+
+    <input
+      type="number"
+      name="price"
+      placeholder="e.g., 450"
+      value={formData.price}
+      onChange={handleChange}
+      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+      required
+      min="1"
+    />
+  </div>
+
+  {/* AI Predict Button */}
+  <button
+    type="button"
+    onClick={handlePredictPrice}
+    disabled={isPredicting}
+    className="mt-3 w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+  >
+    {isPredicting ? "🤖 Predicting with AI..." : "✨ Predict Price with AI"}
+  </button>
+
+  {/* AI Result Section */}
+  {predictedPrice && (
+    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <h3 className="text-lg font-semibold text-green-700">
+        🤖 AI Suggested Price: ₹{predictedPrice}
+      </h3>
+
+      <p className="text-sm text-gray-600 mt-2">
+        {predictionReason ||
+          "Price estimated based on location demand, property size, and selected amenities."}
+      </p>
+    </div>
+  )}
+</div>
 
       {/* Submit Button */}
       <button

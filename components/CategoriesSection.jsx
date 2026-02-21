@@ -1,3 +1,5 @@
+"use client";
+
 export default function CategoriesSection() {
   const categories = [
     { name: "Beach", icon: "🏖️", count: "2,500+" },
@@ -11,34 +13,59 @@ export default function CategoriesSection() {
   ];
 
   return (
-    <section className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold text-gray-900 mb-6">
-            Explore by Category
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Discover your perfect getaway from our diverse collection of unique
-            destinations around the world
-          </p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-6">
-          {categories.map((category, index) => (
+    <section className="py-24 bg-gradient-to-b from-gray-50 to-white w-full">
+
+      <div className="w-full px-8">
+
+        {/* Header */}
+   <div className="mb-16 text-center">
+  <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+    Explore by Category
+  </h2>
+
+  <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+    Find stays that match your travel vibe — from peaceful mountains
+    to vibrant city escapes.
+  </p>
+</div>
+
+        {/* Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+
+          {categories.map((category) => (
             <div
               key={category.name}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 text-center cursor-pointer border border-gray-100 hover:shadow-lg transition-all duration-300 animate-[fadeIn_0.5s_ease-out] group"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="group relative rounded-3xl p-8 cursor-pointer 
+              bg-white/70 backdrop-blur-lg 
+              border border-gray-200
+              hover:shadow-2xl hover:-translate-y-3
+              transition-all duration-500"
             >
-              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                {category.icon}
+              {/* Soft Glow Background */}
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-pink-100/40 to-orange-100/40 opacity-0 group-hover:opacity-100 transition duration-500"></div>
+
+              {/* Content */}
+              <div className="relative z-10">
+                <div className="text-5xl mb-6 transition-transform duration-500 group-hover:scale-125">
+                  {category.icon}
+                </div>
+
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {category.name}
+                </h3>
+
+                <p className="text-sm text-gray-500">
+                  {category.count} stays
+                </p>
+
+                {/* Animated underline */}
+                <div className="mt-5 h-[2px] w-0 bg-gray-900 transition-all duration-500 group-hover:w-12"></div>
               </div>
-              <h3 className="font-bold text-gray-900 mb-2 text-lg">
-                {category.name}
-              </h3>
-              <p className="text-sm text-gray-500">{category.count} stays</p>
             </div>
           ))}
+
         </div>
+
       </div>
     </section>
   );

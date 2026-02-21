@@ -2,18 +2,30 @@ import { connectToDatabase } from "@/lib/db";
 import { getUserFromToken } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 
-export async function GET(req, { params }) {
+const FLASK_URL =
+  process.env.ML_API_URL || "https://sami123.pythonanywhere.com/sentiment-api";
+
+/* ==========================
+   GET REVIEWS
+========================== */
+export async function GET(req, context) {
   try {
-    if (!/^[0-9a-f]{24}$/.test(params.id)) {
-      return new Response(JSON.stringify({ message: "Invalid listing ID" }), {
-        status: 400,
-      });
+    const { params } = context;
+    const { id } = await params; // ✅ IMPORTANT FIX
+
+    if (!id || !ObjectId.isValid(id)) {
+      return new Response(
+        JSON.stringify({ message: "Invalid listing ID" }),
+        { status: 400 }
+      );
     }
+
     const { db } = await connectToDatabase();
+
     const reviews = await db
       .collection("reviews")
       .aggregate([
-        { $match: { listingId: new ObjectId(params.id) } },
+        { $match: { listingId: new ObjectId(id) } },
         {
           $lookup: {
             from: "users",
@@ -23,77 +35,139 @@ export async function GET(req, { params }) {
           },
         },
         { $unwind: "$user" },
-        { $project: { "user.password": 0 } },
+        {
+          $project: {
+            "user.password": 0,
+          },
+        },
+        { $sort: { createdAt: -1 } },
       ])
       .toArray();
+
     return new Response(JSON.stringify(reviews), { status: 200 });
   } catch (error) {
-    return new Response(JSON.stringify({ message: "Something went wrong" }), {
-      status: 500,
-    });
+    console.error("GET reviews error:", error);
+    return new Response(
+      JSON.stringify({ message: "Something went wrong" }),
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(req, { params }) {
+/* ==========================
+   POST REVIEW
+========================== */
+export async function POST(req, context) {
   try {
+    const { params } = context;
+    const { id } = await params; // ✅ IMPORTANT FIX
+
+    if (!id || !ObjectId.isValid(id)) {
+      return new Response(
+        JSON.stringify({ message: "Invalid listing ID" }),
+        { status: 400 }
+      );
+    }
+
     const user = await getUserFromToken(req);
     if (!user) {
-      return new Response(JSON.stringify({ message: "Unauthorized" }), {
-        status: 401,
-      });
+      return new Response(
+        JSON.stringify({ message: "Unauthorized" }),
+        { status: 401 }
+      );
     }
-    if (!/^[0-9a-f]{24}$/.test(params.id)) {
-      return new Response(JSON.stringify({ message: "Invalid listing ID" }), {
-        status: 400,
-      });
-    }
+
     const { rating, comment } = await req.json();
+
     if (
       !rating ||
       rating < 1 ||
       rating > 5 ||
       !comment ||
-      comment.length < 10
+      comment.trim().length < 10
     ) {
-      return new Response(JSON.stringify({ message: "Invalid input" }), {
-        status: 400,
-      });
+      return new Response(
+        JSON.stringify({ message: "Invalid input" }),
+        { status: 400 }
+      );
     }
+
     const { db } = await connectToDatabase();
+
+    /* 🧠 CALL ML API */
+    let sentiment = "neutral";
+
+    try {
+      const mlResponse = await fetch(FLASK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ review: comment }),
+      });
+
+      if (mlResponse.ok) {
+        const mlData = await mlResponse.json();
+        sentiment = mlData?.sentiment || "neutral";
+      }
+    } catch (err) {
+      console.error("ML API error:", err.message);
+    }
+
+    /* SAVE REVIEW */
     const review = {
-      listingId: new ObjectId(params.id),
+      listingId: new ObjectId(id),
       userId: new ObjectId(user._id),
       rating: parseInt(rating),
-      comment,
+      comment: comment.trim(),
+      sentiment,
       createdAt: new Date(),
     };
+
     const result = await db.collection("reviews").insertOne(review);
 
-    // Update listing rating and reviews count
-    const reviews = await db
+    /* UPDATE LISTING STATS */
+    const stats = await db
       .collection("reviews")
-      .find({ listingId: new ObjectId(params.id) })
+      .aggregate([
+        { $match: { listingId: new ObjectId(id) } },
+        {
+          $group: {
+            _id: null,
+            avgRating: { $avg: "$rating" },
+            totalReviews: { $sum: 1 },
+          },
+        },
+      ])
       .toArray();
-    const avgRating =
-      reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length || 0;
-    await db
-      .collection("listings")
-      .updateOne(
-        { _id: new ObjectId(params.id) },
-        { $set: { rating: avgRating, reviews: reviews.length } }
-      );
+
+    const avgRating = stats[0]?.avgRating || 0;
+    const totalReviews = stats[0]?.totalReviews || 0;
+
+    await db.collection("listings").updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          rating: Number(avgRating.toFixed(1)),
+          reviews: totalReviews,
+        },
+      }
+    );
 
     return new Response(
       JSON.stringify({
-        ...review,
         _id: result.insertedId,
+        rating: review.rating,
+        comment: review.comment,
+        sentiment: review.sentiment,
+        createdAt: review.createdAt,
         user: { email: user.email },
       }),
       { status: 201 }
     );
   } catch (error) {
-    return new Response(JSON.stringify({ message: "Something went wrong" }), {
-      status: 500,
-    });
+    console.error("POST review error:", error);
+    return new Response(
+      JSON.stringify({ message: "Something went wrong" }),
+      { status: 500 }
+    );
   }
 }

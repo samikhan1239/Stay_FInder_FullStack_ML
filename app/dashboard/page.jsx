@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { fetchWithAuth } from "../../utils/api";
-import { User, Home, Plus, Calendar, Shield, MapPin, Star } from "lucide-react";
+import { User, Home, Plus, Calendar, Shield, MapPin, Star, Menu } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 
 export default function Dashboard() {
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [listings, setListings] = useState([]);
   const [error, setError] = useState(null);
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     console.log("Dashboard: Initializing useEffect");
@@ -100,12 +101,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+  <div className="min-h-screen bg-white flex">
+
       {/* Sidebar */}
-      <Sidebar activeRoute="/dashboard" />
+     <Sidebar
+  activeRoute="/dashboard"
+  isOpen={isOpen}
+  setIsOpen={setIsOpen}
+/>
 
       {/* Main Content */}
-      <div className="flex-1 pt-24 pl-0 lg:pl-64">
+      <div className="flex-1 pt-24 px-4 lg:pl-64">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-12">
@@ -263,15 +269,16 @@ export default function Dashboard() {
                 <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6">
                   <div className="flex items-center space-x-4 mb-6">
                     <div className="relative w-16 h-16">
-                      <Image
-                        src={
-                          user.avatar ||
-                          "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=200"
-                        }
-                        alt={user.name}
-                        fill
-                        className="rounded-full object-cover"
-                      />
+             <Image
+  src={
+    user?.avatar ||
+    `https://api.dicebear.com/7.x/initials/png?seed=${user?.name || user?.email || "Guest"}&backgroundColor=ff385c`
+  }
+  alt="Avatar"
+  width={60}
+  height={60}
+  className="rounded-full"
+/>
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
