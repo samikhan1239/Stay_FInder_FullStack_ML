@@ -26,8 +26,8 @@ recommend_df = joblib.load("recommend_data.pkl")
 recommend_df["_id"] = recommend_df["_id"].astype(str)
 
 # Sentiment Model
-sentiment_model = joblib.load("sentiment_model.pkl")
-sentiment_vectorizer = joblib.load("tfidf_vectorizer.pkl")
+# Sentiment Model
+sentiment_model = joblib.load("hotel_sentiment_model.pkl")
 
 
 # ======================================================
@@ -149,6 +149,10 @@ def predict_api():
 # SENTIMENT ANALYSIS API
 # ======================================================
 
+# ======================================================
+# SENTIMENT ANALYSIS API (No TF-IDF Separate)
+# ======================================================
+
 @app.route("/sentiment-api", methods=["POST"])
 def sentiment_api():
     try:
@@ -158,9 +162,8 @@ def sentiment_api():
         if not review:
             return jsonify({"error": "No review provided"}), 400
 
-        # Vectorize first
-        vectorized = sentiment_vectorizer.transform([review])
-        prediction = sentiment_model.predict(vectorized)[0]
+        # Direct prediction (Pipeline handles vectorization internally)
+        prediction = sentiment_model.predict([review])[0]
 
         label_map = {
             0: "negative",
@@ -174,7 +177,6 @@ def sentiment_api():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ======================================================
 # RECOMMENDATION API
@@ -300,4 +302,4 @@ def health():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    app.run()

@@ -3,7 +3,7 @@ import { getUserFromToken } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 
 const FLASK_URL =
-  process.env.ML_API_URL || "https://sami123.pythonanywhere.com/sentiment-api";
+  process.env.ML_API_URL || "http://127.0.0.1:5000/sentiment-api";
 
 /* ==========================
    GET REVIEWS
